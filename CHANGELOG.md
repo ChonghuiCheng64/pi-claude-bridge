@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+- **Add: refresh the Claude model catalog from Pi's cached Anthropic directory** — Includes native-1M Fable 5.2 without a `[1m]` suffix and a configurable native-1M model list.
+- **Fix: await the current catalog before deferred provider registration** — Hosts remembering models after `session_start` no longer cache the bundled fallback; a second registry check preserves a provider registered concurrently.
+- **Bump: Claude Agent SDK 0.3.322 (Claude Code 2.1.322)** — Supports Fable 5.2's native 1M context.
+
 ## 0.11.0 — 2026-11-06
 
 - **Breaking: AskClaude moved to its own package** — Run `pi install npm:pi-claude-bridge-askclaude` if you want to keep using the AskClaude tool.

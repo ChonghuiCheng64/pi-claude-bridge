@@ -2358,13 +2358,23 @@ export default function (pi: ExtensionAPI) {
 	} else {
 		// Later instance: register only if this session's registry lacks the provider.
 		debug(`provider: deferring registration decision to session_start (module=${moduleInstanceId})`);
-		pi.on("session_start", (_event, ctx) => {
+		pi.on("session_start", async (_event, ctx) => {
 			if (ctx.modelRegistry.getProvider(PROVIDER_ID)) {
 				debug(`provider: registry already has ${PROVIDER_ID}, skipping registration (module=${moduleInstanceId})`);
 				return;
 			}
+			// registerProvider starts a background refresh, but the host may cache its
+			// model list as soon as session_start ends. Publish the current catalog
+			// immediately, not the bundled fallback followed by a later correction.
+			const models = applyLongContext(await registrationModels(ctx.signal), longContextSettings);
+			// Another initializer may have registered while we read the catalog.
+			// Never replace its serving stream, especially on a parent's registry.
+			if (ctx.modelRegistry.getProvider(PROVIDER_ID)) {
+				debug(`provider: registry acquired ${PROVIDER_ID} during catalog load, skipping registration (module=${moduleInstanceId})`);
+				return;
+			}
 			debug(`provider: registry lacks ${PROVIDER_ID}, registering (module=${moduleInstanceId})`);
-			pi.registerProvider(PROVIDER_ID, providerConfig);
+			pi.registerProvider(PROVIDER_ID, { ...providerConfig, models });
 		});
 	}
 }
