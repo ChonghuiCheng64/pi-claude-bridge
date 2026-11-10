@@ -38,7 +38,7 @@ To let other providers delegate tasks or questions to Claude Code, install the A
 
 ## Usage
 
-The model list comes from pi-ai's Anthropic catalog automatically. When pi-ai adds a new Claude model, it appears in `/model` after you update the package; no bridge update is needed. Dated snapshot ids (e.g. `claude-opus-4-5-20251101`) are not shown.
+The model list comes from Pi's Anthropic catalog automatically: the bundled pi-ai catalog plus the cached remote entries in `models-store.json`. The bridge refreshes its provider list when Pi refreshes the catalog, so a model released after the installed pi-ai build can appear without a bridge release. Dated snapshot ids (e.g. `claude-opus-4-5-20251101`) are not shown. Run `pi update --models` or use the Models panel's catalog refresh when you need the latest entries.
 
 All current models run with 1M context. Opus 4.6 and Sonnet 4.6 need extra settings for 1M (see [Configuration](#configuration)).
 
@@ -67,6 +67,7 @@ Create `~/.pi/agent/claude-bridge.json`
 - `autoMemoryEnabled` - enable Claude Code's auto-memory system (default `false`).
 - `pathToClaudeCodeExecutable` - path to the `claude` binary. Useful if your OS/filesystem has the SDK's bundled musl/glibc binaries in a place where they can't run. For example, with Nix you can set the binary to `"/home/you/.nix-profile/bin/claude"`.
 - `forceTwoHundredK` - array of model ids to pin to 200K context (bare id, no `[1m]` suffix). Use if pi-ai declares a model at 1M but Claude Code won't serve it on your plan.
+- `nativeOneMContextModels` - array of model ids whose bare id serves Claude Code's native 1M window. These are registered at 1M and sent without `[1m]`; Fable 5.2 is built in. Add newer models here after verifying them on your plan.
 - `plan` - set to `"max"` on a Max (or Team Premium/Enterprise) plan to run Opus 4.6 with 1M context (default `"pro"`).
 - `longContextExtraUsage` - set to `true` to run Opus 4.6 (on Pro) and Sonnet 4.6 with 1M context, billed through Extra Usage.
 

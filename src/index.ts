@@ -12,6 +12,7 @@ import { QueryProcess } from "./query-process.js";
 import { readTranscript, recordedToolResults, resolveRecordingCut, savePrefixSession } from "./session-transcript.js";
 import { debugLogPath, diagLogPath } from "./log-paths.js";
 import { applyLongContext, buildModels, claudeCodeModelId, type LongContextSettings } from "./models.js";
+import { loadPiAnthropicModels } from "./model-catalog.js";
 import { MCP_SERVER_NAME, MCP_TOOL_PREFIX } from "./skills.js";
 import { verifyWrittenSession as _verifyWrittenSession } from "./session-verify.js";
 import { extractAllToolResults as _extractAllToolResults, type McpResult } from "./extract-tool-results.js";
@@ -55,7 +56,19 @@ function diagDump(label: string, data: Record<string, unknown>) {
 const ACTIVE_STREAM_SIMPLE_KEY = Symbol.for("claude-bridge:activeStreamSimple");
 
 // MODELS is buildModels(getModels("anthropic")) — projection kept in models.js.
+// It stays the offline fallback; registrationModels() prefers Pi's refreshed
+// catalog, including the cached remote entries in models-store.json.
 const MODELS = buildModels(getModels("anthropic"));
+
+async function registrationModels(signal?: AbortSignal) {
+	try {
+		const live = await loadPiAnthropicModels(signal);
+		if (live) return live;
+	} catch (error) {
+		debug(`model catalog: using bundled catalog (${errorMessage(error)})`);
+	}
+	return MODELS;
+}
 let providerSettings: NonNullable<Config["provider"]> = {};
 let longContextSettings: LongContextSettings = { plan: "pro", longContextExtraUsage: false };
 
@@ -2149,10 +2162,14 @@ export default function (pi: ExtensionAPI) {
 	const forceTwoHundredK = Array.isArray(providerSettings.forceTwoHundredK)
 		? providerSettings.forceTwoHundredK.filter((id): id is string => typeof id === "string")
 		: undefined;
+	const nativeOneMContextModels = Array.isArray(providerSettings.nativeOneMContextModels)
+		? providerSettings.nativeOneMContextModels.filter((id): id is string => typeof id === "string")
+		: undefined;
 	longContextSettings = {
 		plan: providerSettings.plan ?? "pro",
 		longContextExtraUsage: providerSettings.longContextExtraUsage ?? false,
 		forceTwoHundredK,
+		nativeOneMContextModels,
 	};
 	const registeredModels = applyLongContext(MODELS, longContextSettings);
 	if (registeredModels.length === 0) {
@@ -2324,6 +2341,12 @@ export default function (pi: ExtensionAPI) {
 		apiKey: "not-used",
 		api: "claude-bridge",
 		models: registeredModels,
+		// Pi refreshes provider catalogs on startup, /reload, `pi update --models`
+		// and the catalog button in the UI. Re-read its cached Anthropic catalog
+		// here instead of pinning the bridge's list to the pi-ai build.
+		async refreshModels({ signal }) {
+			return applyLongContext(await registrationModels(signal), longContextSettings);
+		},
 		// Cast: the Provider interface passes a TranscriptContext; the bridge takes plain
 		// Context models (toBridgeContext normalizes at the stream entry points).
 		streamSimple: streamClaudeAgentSdk as any,

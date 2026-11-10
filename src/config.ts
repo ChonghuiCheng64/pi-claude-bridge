@@ -27,6 +27,10 @@ export interface Config {
 		// Model ids (e.g. "claude-future-9") whose declared 1M context Claude Code
 		// does not actually serve; pins them to the bare id at 200K.
 		forceTwoHundredK?: string[];
+		// Model ids whose bare id serves Claude Code's native 1M window. These are
+		// registered at 1M and sent without the [1m] suffix. Fable 5.2 is built in;
+		// list newer native-1M ids here as they appear in Pi's model catalog.
+		nativeOneMContextModels?: string[];
 	};
 }
 

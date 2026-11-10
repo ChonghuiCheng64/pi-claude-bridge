@@ -57,6 +57,9 @@ export type LongContextSettings = {
 	// Model ids whose declared 1M context Claude Code turned out not to serve;
 	// forces bare id at 200K without a code change.
 	forceTwoHundredK?: string[];
+	// Model ids whose bare id serves Claude Code's native 1M window. Unlike
+	// MEASURED_ONE_M, these must not carry the [1m] suffix.
+	nativeOneMContextModels?: string[];
 };
 
 type ClaudeCodeRuntimeModel = {
@@ -90,6 +93,15 @@ const MEASURED_ONE_M = new Set([
 	"claude-haiku-5-5",
 ]);
 
+// Claude Code serves these ids with a native 1M window from the bare id; adding
+// [1m] is unnecessary. Verified for Fable 5.2 on Claude Code 2.1.322 with a
+// Max 5x subscription: a bare claude-fable-5-2 turn reported contextWindow
+// 1,000,000. Keep this separate from MEASURED_ONE_M because these ids must not
+// be sent with the suffix. provider.nativeOneMContextModels extends this list.
+const NATIVE_ONE_M = new Set([
+	"claude-fable-5-2",
+]);
+
 // Measured exceptions: pi-ai declares 1M and the [1m] id works, but only when
 // the plan allows it.
 const PLAN_GATED_ONE_M: Record<string, (settings: LongContextSettings) => boolean> = {
@@ -106,6 +118,9 @@ export function resolveClaudeCodeRuntimeModel(
 	const modelId = model.id;
 	if (settings.forceTwoHundredK?.includes(modelId)) {
 		return { cliModelId: modelId, contextWindow: TWO_HUNDRED_K_CONTEXT };
+	}
+	if (NATIVE_ONE_M.has(modelId) || settings.nativeOneMContextModels?.includes(modelId)) {
+		return { cliModelId: modelId, contextWindow: ONE_M_CONTEXT };
 	}
 	if (MEASURED_ONE_M.has(modelId)) {
 		return { cliModelId: `${modelId}[1m]`, contextWindow: ONE_M_CONTEXT };

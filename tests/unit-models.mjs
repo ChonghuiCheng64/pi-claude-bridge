@@ -78,6 +78,27 @@ describe("Claude Code runtime policy", () => {
 		}
 	});
 
+	it("native-1M ids send the bare id at 1M", () => {
+		assert.deepEqual(resolveClaudeCodeRuntimeModel(oneM("claude-fable-5-2"), PRO), {
+			cliModelId: "claude-fable-5-2",
+			contextWindow: 1000000,
+		});
+		assert.deepEqual(resolveClaudeCodeRuntimeModel(oneM("claude-fable-5-2"), MAX), {
+			cliModelId: "claude-fable-5-2",
+			contextWindow: 1000000,
+		});
+	});
+
+	it("nativeOneMContextModels extends the native-1M set without [1m]", () => {
+		assert.deepEqual(
+			resolveClaudeCodeRuntimeModel(oneM("claude-future-9"), {
+				...PRO,
+				nativeOneMContextModels: ["claude-future-9"],
+			}),
+			{ cliModelId: "claude-future-9", contextWindow: 1000000 },
+		);
+	});
+
 	it("unmeasured ids serve bare at 200K even when pi-ai declares 1M (sonnet-4-5)", () => {
 		assert.deepEqual(resolveClaudeCodeRuntimeModel(oneM("claude-sonnet-4-5"), PRO), { cliModelId: "claude-sonnet-4-5", contextWindow: 200000 });
 	});
@@ -117,6 +138,17 @@ describe("applyLongContext", () => {
 		assert.equal(find(registered, "claude-opus-5").contextWindow, 1000000);
 		assert.equal(find(registered, "claude-opus-4-7").contextWindow, 1000000);
 		assert.equal(find(registered, "claude-fable-5-1").contextWindow, 1000000);
+	});
+
+	it("registers native-1M models at 1M without a [1m] suffix", () => {
+		const models = buildModels([oneM("claude-fable-5-2")]);
+		const registered = applyLongContext(models, PRO);
+		assert.equal(find(registered, "claude-fable-5-2").contextWindow, 1000000);
+		assert.equal(find(registered, "claude-fable-5-2").name, "claude-fable-5-2 1M");
+		assert.deepEqual(resolveClaudeCodeRuntimeModel(models[0], PRO), {
+			cliModelId: "claude-fable-5-2",
+			contextWindow: 1000000,
+		});
 	});
 
 	it("leaves unmeasured sonnet-4-5 at 200K", () => {
